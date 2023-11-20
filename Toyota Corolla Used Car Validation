@@ -1,11 +1,18 @@
 library(forecast)
+#Reading the Toyota Corolla File
 toyota.corolla.df<-read.csv("ToyotaCorolla.csv")
+#Inspecting Elements
 head(toyota.corolla.df)
+#Creating the Training data set
 training<-sample(toyota.corolla.df$Id,600)
+#Creating the Validation data set  
 validation<-sample(setdiff(toyota.corolla.df$Id,training),400)
+#Linear Regression 
 reg<-lm(Price~.,data=toyota.corolla.df[,-c(1,2,8,11)],subset=training,
         na.action=na.exclude)
+#predicting the training data set 
 pred_t<-predict(reg,na.action=na.pass)
+#predicting the validation data set
 pred_v <- predict(reg, newdata=toyota.corolla.df[validation,-c(1,2,8,11)],
                   na.action=na.pass)
 #training
@@ -13,7 +20,10 @@ accuracy(pred_t, toyota.corolla.df[training,]$Price)
 
 #validation
 accuracy(pred_v, toyota.corolla.df[validation,]$Price)
+#histogram of training dataset
 hist(pred_t)
+#histogram of Validation dataset
 hist(pred_v)
+#Boxplot to determine Outliers
 boxplot(pred_t)
 boxplot(pred_v)
