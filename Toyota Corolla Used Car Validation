@@ -1,0 +1,19 @@
+library(forecast)
+toyota.corolla.df<-read.csv("ToyotaCorolla.csv")
+head(toyota.corolla.df)
+training<-sample(toyota.corolla.df$Id,600)
+validation<-sample(setdiff(toyota.corolla.df$Id,training),400)
+reg<-lm(Price~.,data=toyota.corolla.df[,-c(1,2,8,11)],subset=training,
+        na.action=na.exclude)
+pred_t<-predict(reg,na.action=na.pass)
+pred_v <- predict(reg, newdata=toyota.corolla.df[validation,-c(1,2,8,11)],
+                  na.action=na.pass)
+#training
+accuracy(pred_t, toyota.corolla.df[training,]$Price)
+
+#validation
+accuracy(pred_v, toyota.corolla.df[validation,]$Price)
+hist(pred_t)
+hist(pred_v)
+boxplot(pred_t)
+boxplot(pred_v)
