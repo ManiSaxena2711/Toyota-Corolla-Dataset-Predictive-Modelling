@@ -1,3 +1,4 @@
+######Evaluating Predicitive Performance 
 library(forecast)
 #Reading the Toyota Corolla File
 toyota.corolla.df<-read.csv("ToyotaCorolla.csv")
@@ -17,7 +18,6 @@ pred_v <- predict(reg, newdata=toyota.corolla.df[validation,-c(1,2,8,11)],
                   na.action=na.pass)
 #training
 accuracy(pred_t, toyota.corolla.df[training,]$Price)
-
 #validation
 accuracy(pred_v, toyota.corolla.df[validation,]$Price)
 #histogram of training dataset
@@ -27,3 +27,87 @@ hist(pred_v)
 #Boxplot to determine Outliers
 boxplot(pred_t)
 boxplot(pred_v)
+toyota.corolla.df <- read.csv("ToyotaCorolla.csv")
+# remove missing Price data
+toyota.corolla.df <-toyota.corolla.df[!is.na(toyota.corolla.df[validation,]$Price),]
+# generate random Training and Validation sets
+training <- sample(toyota.corolla.df$Id, 600)
+validation <- sample(toyota.corolla.df$Id, 400)
+# regression model based on all numerical predictors
+reg <- lm(Price~., data = toyota.corolla.df[,-c(1,2,8,11)], subset = training)
+# predictions
+pred_v <- predict(reg, newdata = toyota.corolla.df[validation,-c(1,2,8,11)])
+# load package gains, compute gains (we will use package caret for categorical y later)
+library(gains)
+gain <- gains(toyota.corolla.df[validation,]$Price[!is.na(pred_v)], pred_v[!is.na(pred_v)])
+# cumulative lift chart
+options(scipen=999) # avoid scientific notation
+# we will compute the gain relative to price
+price <- toyota.corolla.df[validation,]$Price[!is.na(toyota.corolla.df[validation,]$Price)]
+plot(c(0,gain$cume.pct.of.total*sum(price))~c(0,gain$cume.obs),
+xlab="# cases", ylab="Cumulative Price", main="Lift Chart", type="l")
+# baseline
+lines(c(0,sum(price))~c(0,dim(toyota.corolla.df[validation,])[1]), col="gray", lty=2)
+# Decile-wise lift chart
+barplot(gain$mean.resp/mean(price), names.arg = gain$depth,
+xlab = "Percentile", ylab = "Mean Response", main = "Decile-wise lift chart")
+
+
+###### MULTIPLE LINEAR REGRESSION
+library(forecast)
+car.df <- read.csv("ToyotaCorolla.csv")
+# use first 1000 rows of data
+car.df <- car.df[1:1000, ]
+# select variables for regression
+selected.var <- c(3, 4, 7, 8, 9, 10, 12, 13, 14, 17, 18)
+# partition data
+set.seed(1) # set seed for reproducing the partition
+train.index <- sample(c(1:1000), 600)
+train.df <- car.df[train.index, selected.var]
+valid.df <- car.df[-train.index, selected.var]
+# use lm() to run a linear regression of Price on all 11 predictors in the
+# training set.
+# use . after ~ to include all the remaining columns in train.df as predictors.
+car.lm <- lm(Price ~ ., data = train.df)
+# use options() to ensure numbers are not displayed in scientific notation.
+options(scipen = 999)
+summary(car.lm)
+#use predict() to make predictions on a new set
+car.lm.pred=predict(car.lm,valid.df)
+print(car.lm.pred)
+some.residuals=valid.df$Price[1:20]-car.lm.pred[1:20]
+data.frame("Predicted"=car.lm.pred[1:20],"Actual"=valid.df$Price[1:20],
+           "Residual"=some.residuals[1:20])
+options(scipen=999,digits=3)
+#accuracy 
+accuracy(car.lm.pred,valid.df$Price)
+#histogram 
+all.residuals=valid.df$Price-car.lm.pred
+hist(all.residuals,breaks=25,xlab="Residuals",main="")
+#deciding which variables to use for prediction
+#use regsubsets() in package leaps to run exhaustive search
+library(leaps)
+Fuel_type=as.data.frame(model.matrix(~0+Fuel_Type,data=train.df))
+#replace fuel type with dummy columns
+train.df=cbind(train.df[,-4],Fuel_type)
+head(train.df)
+search=regsubsets(Price~.,data=train.df,nbest=1,nvmax=dim(train.df)[2],
+                  method="exhaustive")
+sum=summary(search)
+sum$which
+sum$rsq
+sum$adjr2
+sum$cp
+#use step to run step wise regression
+#Backward Elimination
+car.lm.step.backward=step(car.lm,direction="backward")
+summary(car.lm.step.backward)
+car.lm.step.backward.pred=predict(car.lm.step.backward,valid.df)
+accuracy(car.lm.step.backward.pred,valid.df$Price)
+#Forward Slection
+car.lm.step.forward=step(car.lm,direction="forward")
+summary(car.lm.step.forward)
+car.lm.step.forward.pred=predict(car.lm.step.forward,valid.df)
+accuracy(car.lm.step.forward.pred,valid.df$Price)
+
+
